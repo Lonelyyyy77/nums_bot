@@ -101,7 +101,7 @@ async def view_users(callback: CallbackQuery):
     users, total_pages = format_users_page(1, only_without_code)
 
     if not users:
-        await callback.message.answer("📭 В базе нет пользователей.")
+        await callback.answer("📭 В базе нет пользователей.", show_alert=True)
         return
 
     users_text = "\n\n".join([
@@ -113,7 +113,11 @@ async def view_users(callback: CallbackQuery):
         for user in users
     ])
 
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        logging.warning(f"Не удалось удалить сообщение: {e}")
+
     await callback.message.answer(
         f"📋 <b>Список пользователей (страница 1/{total_pages}):</b>\n\n"
         f"{users_text}\n\n"
@@ -121,6 +125,7 @@ async def view_users(callback: CallbackQuery):
         parse_mode="HTML",
         reply_markup=get_navigation_kb(users, 1, total_pages, admin_id)
     )
+
 
 
 @router.callback_query(lambda c: c.data.startswith("prev_page"))
