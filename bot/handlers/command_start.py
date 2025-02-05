@@ -6,7 +6,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from start_bot import admin_id, test_id
+from bot.start_bot import admin_id, test_id
 
 dotenv.load_dotenv()
 
