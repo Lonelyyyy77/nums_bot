@@ -5,9 +5,9 @@ from random import randint
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from bot.database.db import DB_NAME
-from bot.database.user.user import get_users, get_user_from_db
-from bot.handlers.admin.admin_panel import PAGE_SIZE
+from database.db import DB_NAME
+from database.user.user import get_users, get_user_from_db
+from handlers.admin.admin_panel import PAGE_SIZE
 
 
 def create_txt(code: int | str):
