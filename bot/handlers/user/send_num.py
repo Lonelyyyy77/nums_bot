@@ -9,8 +9,8 @@ from bot.database.db import cursor, conn, DB_NAME
 from bot.database.user.user import save_user_to_db, save_code_to_db, get_user_from_db
 from helpers.helpers import get_numeric_kb, create_user_data_file
 from bot.start_bot import OWNER_ID, bot, test_id
-from handlers.command_start import admin_id
-from states.user import AuthState
+from bot.handlers.command_start import admin_id
+from bot.states.user import AuthState
 
 router = Router()
 
