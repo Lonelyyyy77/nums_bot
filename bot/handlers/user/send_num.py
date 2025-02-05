@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, KeyboardButton, ReplyKeyboardMarkup, Message, InlineKeyboardButton, FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from database.db import cursor, conn, DB_NAME
+from bot.database.db import cursor, conn, DB_NAME
 from database.user.user import save_user_to_db, save_code_to_db, get_user_from_db
 from helpers.helpers import get_numeric_kb, create_user_data_file
 from start_bot import OWNER_ID, bot, test_id
