@@ -8,7 +8,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.database.db import DB_NAME
 from bot.database.user.user import get_users, get_users_amdin_panel
-from start_bot import test_id, admin_id
+from bot.start_bot import test_id, admin_id
 
 router = Router()
 PAGE_SIZE = 3
