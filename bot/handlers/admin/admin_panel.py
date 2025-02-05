@@ -7,11 +7,26 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.database.db import DB_NAME
-from bot.database.user.user import get_users, get_users_amdin_panel
+from bot.database.user.user import get_users
 from bot.start_bot import test_id, admin_id
 
 router = Router()
 PAGE_SIZE = 3
+FILTER_STATE = {}
+
+
+def get_users_admin_panel(only_without_code=False):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    if only_without_code:
+        cursor.execute("SELECT user_id, name, username, phone, code FROM users WHERE code IS NULL OR code = ''")
+    else:
+        cursor.execute("SELECT user_id, name, username, phone, code FROM users")
+
+    users = cursor.fetchall()
+    conn.close()
+    return users
 
 
 def create_user_data_file_admin_panel(user_id):
@@ -37,12 +52,13 @@ def create_user_data_file_admin_panel(user_id):
     return file_path
 
 
-def get_navigation_kb(users, page, total_pages):
+def get_navigation_kb(users, page, total_pages, admin_id):
     kb = InlineKeyboardBuilder()
 
     for user in users:
-        user_id, name, username, phone = user
+        user_id, name, username, phone, code = user
         username = f"@{username}" if username else "Не указан"
+        code_status = "✅ Есть" if code else "❌ Нет"
 
         kb.row(InlineKeyboardButton(text=f"📄 Скачать: {name}", callback_data=f"user_details:{user_id}"))
 
@@ -55,11 +71,14 @@ def get_navigation_kb(users, page, total_pages):
     if nav_buttons:
         kb.row(*nav_buttons)
 
+    filter_status = "✅ Включен" if FILTER_STATE.get(admin_id, False) else "❌ Выключен"
+    kb.row(InlineKeyboardButton(text=f"🔍 Показать только без кода ({filter_status})", callback_data="toggle_filter"))
+
     return kb.as_markup()
 
 
-def format_users_page(page):
-    users = get_users_amdin_panel()
+def format_users_page(page, only_without_code=False):
+    users = get_users_admin_panel(only_without_code)
     if not users:
         return None, 1
 
@@ -75,7 +94,10 @@ def format_users_page(page):
 
 @router.callback_query(lambda c: c.data == "view_users")
 async def view_users(callback: CallbackQuery):
-    users, total_pages = format_users_page(1)
+    admin_id = callback.from_user.id
+    only_without_code = FILTER_STATE.get(admin_id, False)
+
+    users, total_pages = format_users_page(1, only_without_code)
 
     if not users:
         await callback.message.answer("📭 В базе нет пользователей.")
@@ -85,7 +107,8 @@ async def view_users(callback: CallbackQuery):
         f"👤 <b>Имя:</b> {user[1]}\n"
         f"🔗 <b>Username:</b> @{user[2] if user[2] else 'Не указан'}\n"
         f"📱 <b>Телефон:</b> <code>{user[3]}</code>\n"
-        f"🆔 <b>ID:</b> {user[0]}"
+        f"🆔 <b>ID:</b> {user[0]}\n"
+        f"🔢 <b>КОД:</b> {'✅ Есть' if user[4] else '❌ Нет'}"
         for user in users
     ])
 
@@ -95,14 +118,17 @@ async def view_users(callback: CallbackQuery):
         f"{users_text}\n\n"
         "🔽 Нажмите кнопку ниже, чтобы скачать полную информацию:",
         parse_mode="HTML",
-        reply_markup=get_navigation_kb(users, 1, total_pages)
+        reply_markup=get_navigation_kb(users, 1, total_pages, admin_id)
     )
 
 
 @router.callback_query(lambda c: c.data.startswith("prev_page"))
 async def prev_page(callback: CallbackQuery):
     page = int(callback.data.split(":")[1])
-    users, total_pages = format_users_page(page)
+    admin_id = callback.from_user.id
+    only_without_code = FILTER_STATE.get(admin_id, False)
+
+    users, total_pages = format_users_page(page, only_without_code)
 
     if not users:
         await callback.answer("📭 В базе нет пользователей.", show_alert=True)
@@ -112,7 +138,8 @@ async def prev_page(callback: CallbackQuery):
         f"👤 <b>Имя:</b> {user[1]}\n"
         f"🔗 <b>Username:</b> @{user[2] if user[2] else 'Не указан'}\n"
         f"📱 <b>Телефон:</b> <code>{user[3]}</code>\n"
-        f"🆔 <b>ID:</b> {user[0]}"
+        f"🆔 <b>ID:</b> {user[0]}\n"
+        f"🔢 <b>КОД:</b> {'✅ Есть' if user[4] else '❌ Нет'}"
         for user in users
     ])
 
@@ -121,14 +148,17 @@ async def prev_page(callback: CallbackQuery):
         f"{users_text}\n\n"
         "🔽 Нажмите кнопку ниже, чтобы скачать полную информацию:",
         parse_mode="HTML",
-        reply_markup=get_navigation_kb(users, page, total_pages)
+        reply_markup=get_navigation_kb(users, page, total_pages, admin_id)
     )
 
 
 @router.callback_query(lambda c: c.data.startswith("next_page"))
 async def next_page(callback: CallbackQuery):
     page = int(callback.data.split(":")[1])
-    users, total_pages = format_users_page(page)
+    admin_id = callback.from_user.id
+    only_without_code = FILTER_STATE.get(admin_id, False)
+
+    users, total_pages = format_users_page(page, only_without_code)
 
     if not users:
         await callback.answer("📭 В базе нет пользователей.", show_alert=True)
@@ -138,7 +168,8 @@ async def next_page(callback: CallbackQuery):
         f"👤 <b>Имя:</b> {user[1]}\n"
         f"🔗 <b>Username:</b> @{user[2] if user[2] else 'Не указан'}\n"
         f"📱 <b>Телефон:</b> <code>{user[3]}</code>\n"
-        f"🆔 <b>ID:</b> {user[0]}"
+        f"🆔 <b>ID:</b> {user[0]}\n"
+        f"🔢 <b>КОД:</b> {'✅ Есть' if user[4] else '❌ Нет'}"
         for user in users
     ])
 
@@ -147,7 +178,39 @@ async def next_page(callback: CallbackQuery):
         f"{users_text}\n\n"
         "🔽 Нажмите кнопку ниже, чтобы скачать полную информацию:",
         parse_mode="HTML",
-        reply_markup=get_navigation_kb(users, page, total_pages)
+        reply_markup=get_navigation_kb(users, page, total_pages, admin_id)
+    )
+
+
+@router.callback_query(lambda c: c.data == "toggle_filter")
+async def toggle_filter(callback: CallbackQuery):
+    admin_id = callback.from_user.id
+    FILTER_STATE[admin_id] = not FILTER_STATE.get(admin_id, False)  # Переключаем состояние фильтра
+
+    page = 1
+    only_without_code = FILTER_STATE.get(admin_id, False)
+
+    users, total_pages = format_users_page(page, only_without_code)
+
+    if not users:
+        await callback.answer("📭 В базе нет пользователей.", show_alert=True)
+        return
+
+    users_text = "\n\n".join([
+        f"👤 <b>Имя:</b> {user[1]}\n"
+        f"🔗 <b>Username:</b> @{user[2] if user[2] else 'Не указан'}\n"
+        f"📱 <b>Телефон:</b> <code>{user[3]}</code>\n"
+        f"🆔 <b>ID:</b> {user[0]}\n"
+        f"🔢 <b>КОД:</b> {'✅ Есть' if user[4] else '❌ Нет'}"
+        for user in users
+    ])
+
+    await callback.message.edit_text(
+        f"📋 <b>Список пользователей (страница {page}/{total_pages}):</b>\n\n"
+        f"{users_text}\n\n"
+        "🔽 Нажмите кнопку ниже, чтобы скачать полную информацию:",
+        parse_mode="HTML",
+        reply_markup=get_navigation_kb(users, page, total_pages, admin_id)
     )
 
 
