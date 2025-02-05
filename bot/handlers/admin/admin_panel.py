@@ -16,7 +16,7 @@ FILTER_STATE = {}
 
 
 def get_users_admin_panel(only_without_code=False):
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(DB_NAME, timeout=10)  # ✅ Даем 10 секунд на ожидание разблокировки БД
     cursor = conn.cursor()
 
     if only_without_code:
@@ -27,6 +27,7 @@ def get_users_admin_panel(only_without_code=False):
     users = cursor.fetchall()
     conn.close()
     return users
+
 
 
 def create_user_data_file_admin_panel(user_id):
@@ -185,11 +186,10 @@ async def next_page(callback: CallbackQuery):
 @router.callback_query(lambda c: c.data == "toggle_filter")
 async def toggle_filter(callback: CallbackQuery):
     admin_id = callback.from_user.id
-    FILTER_STATE[admin_id] = not FILTER_STATE.get(admin_id, False)  # Переключаем состояние фильтра
+    FILTER_STATE[admin_id] = not FILTER_STATE.get(admin_id, False)
 
     page = 1
     only_without_code = FILTER_STATE.get(admin_id, False)
-
     users, total_pages = format_users_page(page, only_without_code)
 
     if not users:
@@ -205,26 +205,37 @@ async def toggle_filter(callback: CallbackQuery):
         for user in users
     ])
 
-    await callback.message.edit_text(
-        f"📋 <b>Список пользователей (страница {page}/{total_pages}):</b>\n\n"
-        f"{users_text}\n\n"
-        "🔽 Нажмите кнопку ниже, чтобы скачать полную информацию:",
-        parse_mode="HTML",
-        reply_markup=get_navigation_kb(users, page, total_pages, admin_id)
-    )
+    new_text = f"📋 <b>Список пользователей (страница {page}/{total_pages}):</b>\n\n{users_text}\n\n🔽 Нажмите кнопку ниже, чтобы скачать полную информацию:"
+
+    if callback.message.text != new_text:
+        await callback.message.edit_text(
+            new_text,
+            parse_mode="HTML",
+            reply_markup=get_navigation_kb(users, page, total_pages, admin_id)
+        )
+    else:
+        await callback.answer("⚠️ Список уже обновлён!", show_alert=True)
+
 
 
 @router.callback_query(lambda c: c.data.startswith("user_details:"))
 async def user_details(callback: CallbackQuery):
-    user_id = int(callback.data.split(":")[1])
+    try:
+        user_id = int(callback.data.split(":")[1])
+    except ValueError:
+        await callback.answer("❌ Ошибка! Неверный ID пользователя.", show_alert=True)
+        return
+
     file_path = create_user_data_file_admin_panel(user_id)
 
-    if file_path:
+    if file_path and os.path.exists(file_path):  # ✅ Проверяем, существует ли файл
         await callback.bot.send_document(
             admin_id,
             FSInputFile(file_path),
             caption=f"📂 Данные пользователя {user_id}."
         )
+        os.remove(file_path)  # ✅ Удаляем файл после отправки
         await callback.answer("📄 Файл с данными отправлен админу!")
     else:
         await callback.answer("❌ Ошибка! Файл не найден.", show_alert=True)
+
