@@ -6,8 +6,8 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from database.db import DB_NAME
-from database.user.user import get_users, get_users_amdin_panel
+from bot.database.db import DB_NAME
+from bot.database.user.user import get_users, get_users_amdin_panel
 from start_bot import test_id, admin_id
 
 router = Router()
