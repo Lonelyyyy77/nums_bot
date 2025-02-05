@@ -5,8 +5,8 @@ import os
 from aiogram import Bot, Dispatcher, Router
 import dotenv
 
-from bot.database.db import init_db
-from bot.routers.routers import start_router, user_routers, admin_routers
+from database.db import init_db
+from routers.routers import start_router, user_routers, admin_routers
 
 dotenv.load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
