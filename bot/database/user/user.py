@@ -1,6 +1,6 @@
 import sqlite3
 
-from database.db import DB_NAME
+from bot.database.db import DB_NAME
 
 
 def save_user_to_db(user_id, name, username, phone_number):
